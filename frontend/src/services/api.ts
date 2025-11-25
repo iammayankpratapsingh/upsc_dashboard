@@ -1,21 +1,9 @@
 import type { ApiRecord, DashboardData, DashboardFilters, FilterOptions } from '../types';
 
-// Get the API URL from environment variable or construct it
-const getDashboardStatsAPI = () => {
-  const envApi = import.meta.env.VITE_DASHBOARD_STATS_API;
-  if (envApi) {
-    // If full URL provided, use it
-    if (envApi.startsWith('http://') || envApi.startsWith('https://')) {
-      return envApi;
-    }
-    // If relative path provided, use it
-    return envApi;
-  }
-  // Default to relative path for local development
-  return '/api/dashboard-stats';
-};
-
-const DASHBOARD_STATS_API = getDashboardStatsAPI();
+// Backend API URL - directly configured
+const DASHBOARD_STATS_API = 
+  import.meta.env.VITE_DASHBOARD_STATS_API || 
+  'https://upsc-dashboard-1.onrender.com/api/dashboard-stats';
 const API_TIMEOUT = 10_000;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
