@@ -4,11 +4,26 @@ import { formatExamCode } from '../services/api';
 
 interface DataTableProps {
   rows: TableRow[];
+  selectedExamCode?: string;
   isLoading?: boolean;
   error?: Error | null;
 }
 
 const numberFormatter = new Intl.NumberFormat('en-IN');
+
+const stripLeadingZeros = (value: string) => {
+  if (!value) return value;
+  const trimmed = value.replace(/^0+/, '');
+  return trimmed.length ? trimmed : '0';
+};
+
+const buildDownloadUrl = (centreId: string, subCentreId: string) => {
+  const normalizedCentre = stripLeadingZeros(centreId);
+  const normalizedSubCentre = stripLeadingZeros(subCentreId);
+  return `https://aviktechnosoft.com/dic/test.php?centre=${encodeURIComponent(
+    normalizedCentre,
+  )}&subcentre=${encodeURIComponent(normalizedSubCentre)}`;
+};
 
 // Parse date string to timestamp, handling DD-MM-YYYY or YYYY-MM-DD formats
 const parseDate = (dateStr: string): number => {
@@ -46,7 +61,7 @@ const compareStrings = (a: string, b: string): number => {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 };
 
-export const DataTable = ({ rows, isLoading, error }: DataTableProps) => {
+export const DataTable = ({ rows, selectedExamCode, isLoading, error }: DataTableProps) => {
   const sortedRows = [...rows].sort((a, b) => {
     // Sort by date (latest first)
     const dateA = parseDate(a.examDate);
@@ -61,6 +76,18 @@ export const DataTable = ({ rows, isLoading, error }: DataTableProps) => {
     // Then by sub center
     return compareStrings(a.subCentreId, b.subCentreId);
   });
+
+  const normalizedExamCode = selectedExamCode?.trim();
+  const shouldFilter =
+    normalizedExamCode !== undefined &&
+    normalizedExamCode.length > 0 &&
+    !normalizedExamCode.toLowerCase().startsWith('all');
+
+  const filteredRows = shouldFilter
+    ? sortedRows.filter((row) => formatExamCode(row.examCode) === normalizedExamCode)
+    : sortedRows;
+
+  const hasNoRows = !isLoading && filteredRows.length === 0;
 
   return (
     <WidgetCard
@@ -83,46 +110,68 @@ export const DataTable = ({ rows, isLoading, error }: DataTableProps) => {
               <th className="pb-4 pr-4 font-semibold">Sub Centre</th>
               <th className="pb-4 pr-4 font-semibold">Verification Mode</th>
               <th className="pb-4 font-semibold">Admit Count</th>
+              <th className="pb-4 pl-2 text-right font-semibold">Download</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[color:rgba(148,163,184,0.25)]">
-            {isLoading
-              ? [...Array(5)].map((_, idx) => (
-                  <tr key={idx} className="animate-pulse text-muted">
-                    {[...Array(7)].map((__value, cellIdx) => (
-                      <td key={cellIdx} className="py-3 pr-4">
-                        <div className="h-4 w-24 rounded-full bg-[rgba(148,163,184,0.3)]" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              : sortedRows.map((row) => (
-                <tr
-                  key={`${row.examCode}-${row.examDate}-${row.centreId}-${row.subCentreId}-${row.verificationMode}`}
-                  className="text-primary"
-                >
-                  <td className="py-4 pr-4">{row.examDate}</td>
-                  <td className="py-4 pr-4 font-semibold">{formatExamCode(row.examCode)}</td>
-                  <td className="py-4 pr-4">{row.examSession}</td>
-                  <td className="py-4 pr-4">{row.centreId}</td>
-                  <td className="py-4 pr-4 text-muted">{row.subCentreId}</td>
-                  <td className="py-4 pr-4">
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                        row.verificationMode === 'A'
-                          ? 'bg-chart-automated/15 text-chart-automated'
-                          : 'bg-chart-manual/20 text-chart-manual'
-                      }`}
-                    >
-                      {row.verificationMode === 'A' ? 'Automated' : 'Manual'}
-                    </span>
-                  </td>
-                  <td className="py-4 font-semibold">
-                    {numberFormatter.format(row.admitCount)}
-                  </td>
+            {isLoading ? (
+              [...Array(5)].map((_, idx) => (
+                <tr key={idx} className="animate-pulse text-muted">
+                  {[...Array(8)].map((__value, cellIdx) => (
+                    <td key={cellIdx} className="py-3 pr-4">
+                      <div className="h-4 w-24 rounded-full bg-[rgba(148,163,184,0.3)]" />
+                    </td>
+                  ))}
                 </tr>
-              ))}
-        </tbody>
+              ))
+            ) : hasNoRows ? (
+              <tr>
+                <td colSpan={8} className="py-6 text-center text-sm text-muted">
+                  No centres match the selected exam code.
+                </td>
+              </tr>
+            ) : (
+              filteredRows.map((row) => {
+                const formattedCode = formatExamCode(row.examCode);
+                return (
+                  <tr
+                    key={`${row.examCode}-${row.examDate}-${row.centreId}-${row.subCentreId}-${row.verificationMode}`}
+                    className="text-primary"
+                  >
+                    <td className="py-4 pr-4">{row.examDate}</td>
+                    <td className="py-4 pr-4 font-semibold">{formattedCode}</td>
+                    <td className="py-4 pr-4">{row.examSession}</td>
+                    <td className="py-4 pr-4">{row.centreId}</td>
+                    <td className="py-4 pr-4 text-muted">{row.subCentreId}</td>
+                    <td className="py-4 pr-4">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                          row.verificationMode === 'A'
+                            ? 'bg-chart-automated/15 text-chart-automated'
+                            : 'bg-chart-manual/20 text-chart-manual'
+                        }`}
+                      >
+                        {row.verificationMode === 'A' ? 'Automated' : 'Manual'}
+                      </span>
+                    </td>
+                    <td className="py-4 font-semibold">
+                      {numberFormatter.format(row.admitCount)}
+                    </td>
+                    <td className="py-4 pl-2 text-right">
+                      <a
+                        href={buildDownloadUrl(row.centreId, row.subCentreId)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center rounded-lg border border-neutral px-3 py-1 text-xs font-semibold text-primary transition hover:bg-surface"
+                      >
+                        Download
+                      </a>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
       </table>
     </div>
   </WidgetCard>

@@ -1,12 +1,6 @@
+
 import { useEffect, useMemo, useState } from 'react';
-import {
-  StatCard,
-  FilterBar,
-  ComparisonChart,
-  DonutChart,
-  DataTable,
-  DistributionChart,
-} from './components';
+import { StatCard, FilterBar, ComparisonChart, DonutChart, DistributionChart, DataTable } from './components';
 import { useLiveData } from './hooks/useLiveData';
 import type { DashboardFilters } from './types';
 import { useTheme } from './context';
@@ -167,15 +161,17 @@ function App() {
       <section className="mt-4">
         <DataTable
           rows={data?.table ?? []}
+          selectedExamCode={activeFilters.examCode}
           isLoading={isLoading || !data}
           error={error as Error | null}
         />
-        {data?.lastUpdated && (
-          <p className="mt-4 text-xs text-muted">
-            Last updated: {new Date(data.lastUpdated).toLocaleString()}
-          </p>
-        )}
       </section>
+
+      {data?.lastUpdated && (
+        <p className="mt-6 text-xs text-muted">
+          Last updated: {new Date(data.lastUpdated).toLocaleString()}
+        </p>
+      )}
     </div>
   );
 }
