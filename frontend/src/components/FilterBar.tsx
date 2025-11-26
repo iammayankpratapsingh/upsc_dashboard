@@ -6,7 +6,6 @@ interface FilterBarProps {
   onChange: (next: DashboardFilters) => void;
   onApply: () => void;
   onReset?: () => void;
-  isFetching?: boolean;
   isDisabled?: boolean;
   showReset?: boolean;
 }
@@ -33,7 +32,6 @@ export const FilterBar = ({
   onChange,
   onApply,
   onReset,
-  isFetching,
   isDisabled,
   showReset,
 }: FilterBarProps) => {
@@ -86,16 +84,23 @@ export const FilterBar = ({
     <div className="mt-3 rounded-lg border border-neutral bg-surface-muted p-3 backdrop-blur md:p-4">
       <div className="grid gap-2 md:grid-cols-3 lg:grid-cols-6">
         {filterConfig.map(({ key, label, optionKey }) => {
-          let displayOptions = options?.[optionKey] || [];
+          let displayOptions: string[] = [];
           
           // Override for dates dropdown
           if (key === 'examDate' && isReady) {
             displayOptions = filteredDates;
-          }
-          
-          // Override for subcenter dropdown
-          if (key === 'subCentreId' && isReady) {
+          } else if (key === 'subCentreId' && isReady) {
+            // Override for subcenter dropdown
             displayOptions = filteredSubCenters;
+          } else {
+            // Default: get from options
+            const optionValue = options?.[optionKey];
+            // Ensure we only use string arrays, not Maps or other types
+            if (Array.isArray(optionValue) && optionValue.length > 0 && typeof optionValue[0] === 'string') {
+              displayOptions = optionValue as string[];
+            } else {
+              displayOptions = [];
+            }
           }
 
           return (
@@ -107,7 +112,7 @@ export const FilterBar = ({
               {isReady ? (
                 <select
                   className={baseControlClasses}
-                  value={filters[key] ?? displayOptions[0]}
+                  value={filters[key] ?? displayOptions[0] ?? ''}
                   onChange={(event) => {
                     const newFilters = { ...filters, [key]: event.target.value };
                     // Reset dependent filters when exam code changes
@@ -118,7 +123,7 @@ export const FilterBar = ({
                     onChange(newFilters);
                   }}
                 >
-                  {displayOptions.map((value) => (
+                  {displayOptions.map((value: string) => (
                     <option key={value} value={value}>
                       {value}
                     </option>

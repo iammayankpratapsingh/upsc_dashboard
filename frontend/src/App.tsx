@@ -18,7 +18,7 @@ function App() {
   const [defaultFilters, setDefaultFilters] = useState<DashboardFilters | null>(null);
   const { theme, toggleTheme } = useTheme();
 
-  const { data, isLoading, isFetching, error } = useLiveData(activeFilters);
+  const { data, isLoading, error } = useLiveData(activeFilters);
 
   useEffect(() => {
     if (!data?.filters) return;
@@ -109,7 +109,6 @@ function App() {
             label={card.label}
             value={card.value}
             isLoading={isLoading}
-            isFetching={isFetching}
           />
         ))}
       </section>
@@ -121,7 +120,6 @@ function App() {
         onApply={handleApplyFilters}
         onReset={handleResetFilters}
         showReset={hasCustomFilters}
-        isFetching={isFetching}
         isDisabled={!data?.filters}
       />
 
@@ -129,13 +127,11 @@ function App() {
         <ComparisonChart
           data={data?.loginComparison ?? []}
           isLoading={isLoading || !data}
-          isFetching={isFetching}
           error={error as Error | null}
         />
         <DonutChart
           data={data?.loginTypeShare ?? { automatedPercentage: 0, manualPercentage: 0 }}
           isLoading={isLoading || !data}
-          isFetching={isFetching}
           error={error as Error | null}
         />
       </section>
@@ -148,7 +144,6 @@ function App() {
           layout="vertical"
           maxItems={6}
           isLoading={isLoading || !data}
-          isFetching={isFetching}
           error={error as Error | null}
         />
         <DistributionChart
@@ -157,7 +152,6 @@ function App() {
           data={data?.studentsPerCourse ?? []}
           maxItems={6}
           isLoading={isLoading || !data}
-          isFetching={isFetching}
           error={error as Error | null}
         />
         <DistributionChart
@@ -166,7 +160,6 @@ function App() {
           data={data?.studentsPerSession ?? []}
           maxItems={4}
           isLoading={isLoading || !data}
-          isFetching={isFetching}
           error={error as Error | null}
         />
       </section>
@@ -175,7 +168,6 @@ function App() {
         <DataTable
           rows={data?.table ?? []}
           isLoading={isLoading || !data}
-          isFetching={isFetching}
           error={error as Error | null}
         />
         {data?.lastUpdated && (

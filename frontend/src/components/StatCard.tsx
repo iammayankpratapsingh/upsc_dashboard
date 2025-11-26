@@ -7,11 +7,10 @@ export interface StatCardProps {
   value: number;
   highlight?: string;
   isLoading?: boolean;
-  isFetching?: boolean;
 }
 
 export const StatCard = memo(
-  ({ label, value, highlight, isLoading, isFetching }: StatCardProps) => {
+  ({ label, value, highlight, isLoading }: StatCardProps) => {
     return (
       <article className="relative rounded-lg border border-neutral bg-surface p-4 shadow-card transition">
         <p className="text-xs font-medium text-muted md:text-sm">{label}</p>

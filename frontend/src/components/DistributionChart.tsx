@@ -17,7 +17,6 @@ interface DistributionChartProps {
   layout?: 'horizontal' | 'vertical';
   maxItems?: number;
   isLoading?: boolean;
-  isFetching?: boolean;
   error?: Error | null;
   emptyMessage?: string;
 }
@@ -55,7 +54,6 @@ export const DistributionChart = ({
   layout = 'horizontal',
   maxItems,
   isLoading,
-  isFetching,
   error,
   emptyMessage = 'No records match the selected filters.',
 }: DistributionChartProps) => {
@@ -67,7 +65,6 @@ export const DistributionChart = ({
     <WidgetCard
       title={title}
       subtitle={subtitle}
-      isFetching={isFetching}
       status={
         error ? (
           <span className="text-red-400">Unable to refresh data. Showing last values.</span>

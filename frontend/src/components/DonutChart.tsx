@@ -5,13 +5,12 @@ import { WidgetCard } from './WidgetCard';
 interface DonutChartProps {
   data: LoginTypeShare;
   isLoading?: boolean;
-  isFetching?: boolean;
   error?: Error | null;
 }
 
 const COLORS = ['#1f4ed8', '#97b0ff'];
 
-export const DonutChart = ({ data, isLoading, isFetching, error }: DonutChartProps) => {
+export const DonutChart = ({ data, isLoading, error }: DonutChartProps) => {
   const chartData = [
     { name: 'Automated', value: data.automatedPercentage },
     { name: 'Manual', value: data.manualPercentage },
@@ -21,7 +20,6 @@ export const DonutChart = ({ data, isLoading, isFetching, error }: DonutChartPro
     <WidgetCard
       title="Admitted candidates by Type"
       subtitle="Share of all logins"
-      isFetching={isFetching}
       status={
         error ? (
           <span className="text-red-400">Unable to refresh data. Showing last values.</span>
@@ -47,8 +45,6 @@ export const DonutChart = ({ data, isLoading, isFetching, error }: DonutChartPro
                   outerRadius="80%"
                   paddingAngle={4}
                   dataKey="value"
-                  activeIndex={undefined}
-                  activeShape={null}
                   onClick={() => {}}
                 >
                   {chartData.map((entry, index) => (

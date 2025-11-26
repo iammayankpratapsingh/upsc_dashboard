@@ -13,7 +13,6 @@ import { WidgetCard } from './WidgetCard';
 interface ComparisonChartProps {
   data: LoginComparisonItem[];
   isLoading?: boolean;
-  isFetching?: boolean;
   error?: Error | null;
 }
 
@@ -42,7 +41,6 @@ const ChartTooltip = ({
 export const ComparisonChart = ({
   data,
   isLoading,
-  isFetching,
   error,
 }: ComparisonChartProps) => {
   const sortedData = [...(data || [])].sort((a, b) => 
@@ -53,7 +51,6 @@ export const ComparisonChart = ({
     <WidgetCard
       title="Face authentication vs Manual Admissions"
       subtitle="Per exam center"
-      isFetching={isFetching}
       status={
         error ? (
           <span className="text-red-400">Unable to refresh data. Showing last values.</span>

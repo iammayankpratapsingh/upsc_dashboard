@@ -5,7 +5,6 @@ import { formatExamCode } from '../services/api';
 interface DataTableProps {
   rows: TableRow[];
   isLoading?: boolean;
-  isFetching?: boolean;
   error?: Error | null;
 }
 
@@ -47,7 +46,7 @@ const compareStrings = (a: string, b: string): number => {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 };
 
-export const DataTable = ({ rows, isLoading, isFetching, error }: DataTableProps) => {
+export const DataTable = ({ rows, isLoading, error }: DataTableProps) => {
   const sortedRows = [...rows].sort((a, b) => {
     // Sort by date (latest first)
     const dateA = parseDate(a.examDate);
@@ -67,7 +66,6 @@ export const DataTable = ({ rows, isLoading, isFetching, error }: DataTableProps
     <WidgetCard
       title="Center Performance"
       subtitle="Students appeared vs. login types"
-      isFetching={isFetching}
       status={
         error ? (
           <span className="text-red-400">Unable to refresh data. Showing last values.</span>

@@ -4,7 +4,6 @@ interface WidgetCardProps extends PropsWithChildren {
   title: string;
   subtitle?: string;
   action?: ReactNode;
-  isFetching?: boolean;
   status?: ReactNode;
 }
 
@@ -13,7 +12,6 @@ export const WidgetCard = ({
   subtitle,
   action,
   children,
-  isFetching,
   status,
 }: WidgetCardProps) => (
   <section className="relative rounded-lg border border-neutral bg-surface p-4 shadow-card">
