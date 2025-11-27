@@ -9,6 +9,7 @@ import {
 } from 'recharts';
 import type { DistributionDatum } from '../types';
 import { WidgetCard } from './WidgetCard';
+import { formatCityDisplay } from '../utils/cityMapping';
 
 interface DistributionChartProps {
   title: string;
@@ -39,9 +40,13 @@ const ChartTooltip = ({
   if (!active || !payload?.length) return null;
   const { payload: point } = payload[0] ?? {};
   const value = payload[0]?.value ?? 0;
+  // Format label if it's a centre code (check if it's numeric and not already formatted)
+  const label = point?.label ?? '-';
+  const isCentreCode = /^\d+$/.test(label);
+  const displayLabel = isCentreCode ? formatCityDisplay(label) : label;
   return (
     <div className="rounded-xl bg-surface px-4 py-2 text-sm shadow-lg">
-      <p className="font-semibold text-primary">{point?.label ?? '-'}</p>
+      <p className="font-semibold text-primary">{displayLabel}</p>
       <p className="text-muted">{value.toLocaleString()} students</p>
     </div>
   );
@@ -60,6 +65,14 @@ export const DistributionChart = ({
   const trimmedData = maxItems ? data.slice(0, maxItems) : data;
   const hasData = trimmedData.length > 0;
   const isVerticalLayout = layout === 'vertical';
+  
+  // Format labels for "Candidates in each city" chart
+  const formattedData = title === 'Candidates in each city'
+    ? trimmedData.map(item => ({
+        ...item,
+        label: formatCityDisplay(item.label)
+      }))
+    : trimmedData;
 
   return (
     <WidgetCard
@@ -81,7 +94,7 @@ export const DistributionChart = ({
         <div className="h-64 w-full">
           <ResponsiveContainer>
             <BarChart
-              data={trimmedData}
+              data={formattedData}
               layout={isVerticalLayout ? 'vertical' : 'horizontal'}
               margin={{ top: 8, right: 16, left: 0, bottom: 8 }}
               barSize={20}

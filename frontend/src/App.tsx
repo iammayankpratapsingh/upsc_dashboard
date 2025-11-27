@@ -78,8 +78,13 @@ function App() {
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            UPSC Login Dashboard
+            UPSC Face Authentication Dashboard
           </h1>
+          {data?.lastUpdated && (
+            <p className="mt-1 text-xs text-muted">
+              Last updated: {new Date(data.lastUpdated).toLocaleString()}
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -132,7 +137,7 @@ function App() {
 
       <section className="mt-4 grid gap-3 lg:grid-cols-3">
         <DistributionChart
-          title="Students per Centre"
+          title="Candidates in each city"
           subtitle="Top centres by admit count"
           data={data?.studentsPerCentre ?? []}
           layout="vertical"
@@ -150,7 +155,6 @@ function App() {
         />
         <DistributionChart
           title="Face Authentications Session wise"
-          subtitle="Shift-wise admit totals"
           data={data?.studentsPerSession ?? []}
           maxItems={4}
           isLoading={isLoading || !data}
@@ -167,11 +171,6 @@ function App() {
         />
       </section>
 
-      {data?.lastUpdated && (
-        <p className="mt-6 text-xs text-muted">
-          Last updated: {new Date(data.lastUpdated).toLocaleString()}
-        </p>
-      )}
     </div>
   );
 }

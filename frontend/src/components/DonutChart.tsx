@@ -19,7 +19,6 @@ export const DonutChart = ({ data, isLoading, error }: DonutChartProps) => {
   return (
     <WidgetCard
       title="Admitted candidates by Type"
-      subtitle="Share of all logins"
       status={
         error ? (
           <span className="text-red-400">Unable to refresh data. Showing last values.</span>

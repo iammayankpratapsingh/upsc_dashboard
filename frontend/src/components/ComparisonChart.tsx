@@ -9,6 +9,7 @@ import {
 } from 'recharts';
 import type { LoginComparisonItem } from '../types';
 import { WidgetCard } from './WidgetCard';
+import { formatCityDisplay } from '../utils/cityMapping';
 
 interface ComparisonChartProps {
   data: LoginComparisonItem[];
@@ -29,9 +30,10 @@ const ChartTooltip = ({
   const automatedValue =
     typedPayload.find((item) => item.dataKey === 'automated')?.value ?? 0;
   const manualValue = typedPayload.find((item) => item.dataKey === 'manual')?.value ?? 0;
+  const cityDisplay = point?.centreId ? formatCityDisplay(point.centreId) : '-';
   return (
     <div className="rounded-xl bg-surface px-4 py-2 text-sm shadow-lg">
-      <p className="font-semibold text-primary">Centre {point?.centreId ?? '-'}</p>
+      <p className="font-semibold text-primary">City {cityDisplay}</p>
       <p className="text-chart-automated">Automated: {automatedValue}</p>
       <p className="text-chart-manual">Manual: {manualValue}</p>
     </div>
@@ -50,7 +52,6 @@ export const ComparisonChart = ({
   return (
     <WidgetCard
       title="Face authentication vs Manual Admissions"
-      subtitle="Per exam center"
       status={
         error ? (
           <span className="text-red-400">Unable to refresh data. Showing last values.</span>
@@ -87,6 +88,7 @@ export const ComparisonChart = ({
               tickLine={false}
               fontSize={12}
               tick={{ fill: 'var(--text-muted)' }}
+              tickFormatter={(value) => formatCityDisplay(value)}
             />
             <Tooltip content={<ChartTooltip />} />
             <Bar

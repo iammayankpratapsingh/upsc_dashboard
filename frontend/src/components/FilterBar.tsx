@@ -1,4 +1,5 @@
 import type { DashboardFilters, FilterOptions } from '../types';
+import { formatCityDisplay, extractCentreCode } from '../utils/cityMapping';
 
 interface FilterBarProps {
   filters: DashboardFilters;
@@ -18,10 +19,10 @@ const filterConfig: Array<{
   label: string;
   optionKey: keyof FilterOptions;
 }> = [
-  { key: 'examCode', label: 'Exam Code', optionKey: 'examCodes' },
+  { key: 'examCode', label: 'Name of the Examination', optionKey: 'examCodes' },
   { key: 'examDate', label: 'Exam Date', optionKey: 'examDates' },
   { key: 'session', label: 'Session', optionKey: 'sessions' },
-  { key: 'centreId', label: 'Centre', optionKey: 'centreIds' },
+  { key: 'centreId', label: 'City', optionKey: 'centreIds' },
   { key: 'subCentreId', label: 'Sub Centre', optionKey: 'subCentreIds' },
   { key: 'verificationMode', label: 'Verification Mode', optionKey: 'verificationModes' },
 ];
@@ -62,7 +63,27 @@ export const FilterBar = ({
     const rawCode = getRawExamCode(filters.examCode);
     const datesSet = options._examCodeToDates?.get(rawCode);
     if (!datesSet) return options.examDates || [];
-    return ['All Dates', ...Array.from(datesSet).sort()];
+    // Sort dates in descending order (latest first)
+    const parseDate = (dateStr: string): number => {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        // If format is DD-MM-YYYY, convert to YYYY-MM-DD for proper parsing
+        if (parts[0].length === 2 && parts[2].length === 4) {
+          const [day, month, year] = parts;
+          const normalizedDate = `${year}-${month}-${day}`;
+          return new Date(normalizedDate).getTime();
+        }
+        // If format is already YYYY-MM-DD
+        if (parts[0].length === 4) {
+          return new Date(dateStr).getTime();
+        }
+      }
+      return new Date(dateStr).getTime();
+    };
+    const sortedDates = Array.from(datesSet).sort((a, b) => {
+      return parseDate(b) - parseDate(a); // Descending order
+    });
+    return ['All Dates', ...sortedDates];
   };
 
   // Get filtered subcenters based on exam code
@@ -80,6 +101,20 @@ export const FilterBar = ({
   const filteredDates = getFilteredDates();
   const filteredSubCenters = getFilteredSubCenters();
 
+  // Format city options for display
+  const getCityOptions = (): string[] => {
+    if (!options) return [];
+    const centreIds = options.centreIds || [];
+    return centreIds.map((code) => formatCityDisplay(code));
+  };
+
+  // Get current city filter value (formatted for display)
+  const getCityFilterValue = (): string => {
+    const currentValue = filters.centreId;
+    if (!currentValue) return 'All Cities';
+    return formatCityDisplay(currentValue);
+  };
+
   return (
     <div className="mt-3 rounded-lg border border-neutral bg-surface-muted p-3 backdrop-blur md:p-4">
       <div className="grid gap-2 md:grid-cols-3 lg:grid-cols-6">
@@ -92,6 +127,9 @@ export const FilterBar = ({
           } else if (key === 'subCentreId' && isReady) {
             // Override for subcenter dropdown
             displayOptions = filteredSubCenters;
+          } else if (key === 'centreId' && isReady) {
+            // Format city options with "City Name (Code)"
+            displayOptions = getCityOptions();
           } else {
             // Default: get from options
             const optionValue = options?.[optionKey];
@@ -103,6 +141,14 @@ export const FilterBar = ({
             }
           }
 
+          // Get current value for select
+          const getCurrentValue = (): string => {
+            if (key === 'centreId') {
+              return getCityFilterValue();
+            }
+            return filters[key] ?? displayOptions[0] ?? '';
+          };
+
           return (
             <label
               key={key as string}
@@ -112,13 +158,23 @@ export const FilterBar = ({
               {isReady ? (
                 <select
                   className={baseControlClasses}
-                  value={filters[key] ?? displayOptions[0] ?? ''}
+                  value={getCurrentValue()}
                   onChange={(event) => {
-                    const newFilters = { ...filters, [key]: event.target.value };
+                    const selectedValue = event.target.value;
+                    let newFilters = { ...filters };
+                    
+                    // For city filter, extract centre code from display format
+                    if (key === 'centreId') {
+                      newFilters[key] = extractCentreCode(selectedValue);
+                    } else {
+                      newFilters[key] = selectedValue;
+                    }
+                    
                     // Reset dependent filters when exam code changes
                     if (key === 'examCode') {
                       newFilters.examDate = 'All Dates';
                       newFilters.subCentreId = 'All Sub Centres';
+                      newFilters.centreId = 'All Cities';
                     }
                     onChange(newFilters);
                   }}

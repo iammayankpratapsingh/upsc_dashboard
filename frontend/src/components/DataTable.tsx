@@ -1,6 +1,7 @@
 import type { TableRow } from '../types';
 import { WidgetCard } from './WidgetCard';
 import { formatExamCode } from '../services/api';
+import { formatCityDisplay } from '../utils/cityMapping';
 
 interface DataTableProps {
   rows: TableRow[];
@@ -17,12 +18,38 @@ const stripLeadingZeros = (value: string) => {
   return trimmed.length ? trimmed : '0';
 };
 
-const buildDownloadUrl = (centreId: string, subCentreId: string) => {
-  const normalizedCentre = stripLeadingZeros(centreId);
-  const normalizedSubCentre = stripLeadingZeros(subCentreId);
-  return `https://aviktechnosoft.com/dic/test.php?centre=${encodeURIComponent(
-    normalizedCentre,
-  )}&subcentre=${encodeURIComponent(normalizedSubCentre)}`;
+// Extract raw exam code from formatted code (removes "PT ", "Mains " prefixes)
+const extractRawExamCode = (formattedCode: string): string => {
+  if (!formattedCode) return formattedCode;
+  let rawCode = formattedCode.trim();
+  if (rawCode.startsWith('PT ')) {
+    rawCode = rawCode.substring(3);
+  } else if (rawCode.startsWith('Mains ')) {
+    rawCode = rawCode.substring(6);
+  }
+  return rawCode;
+};
+
+const buildDownloadUrl = (
+  examDate: string,
+  examCode: string,
+  examSession: string,
+  centreId: string,
+  subCentreId: string,
+) => {
+  const normalizedCentre = stripLeadingZeros(centreId || '');
+  const normalizedSubCentre = stripLeadingZeros(subCentreId || '');
+  const rawExamCode = extractRawExamCode(examCode || '');
+  
+  // Build URL with all parameters
+  const params = new URLSearchParams();
+  if (examDate) params.append('date', examDate);
+  if (rawExamCode) params.append('exam', rawExamCode);
+  if (examSession) params.append('session', examSession);
+  if (normalizedCentre) params.append('centre', normalizedCentre);
+  if (normalizedSubCentre) params.append('subcentre', normalizedSubCentre);
+  
+  return `https://aviktechnosoft.com/dic/test.php?${params.toString()}`;
 };
 
 // Parse date string to timestamp, handling DD-MM-YYYY or YYYY-MM-DD formats
@@ -91,8 +118,7 @@ export const DataTable = ({ rows, selectedExamCode, isLoading, error }: DataTabl
 
   return (
     <WidgetCard
-      title="Center Performance"
-      subtitle="Students appeared vs. login types"
+      title="City wise candidates appeared"
       status={
         error ? (
           <span className="text-red-400">Unable to refresh data. Showing last values.</span>
@@ -104,9 +130,9 @@ export const DataTable = ({ rows, selectedExamCode, isLoading, error }: DataTabl
           <thead>
             <tr className="text-xs uppercase text-muted">
               <th className="pb-4 pr-4 font-semibold">Exam Date</th>
-              <th className="pb-4 pr-4 font-semibold">Exam Code</th>
+              <th className="pb-4 pr-4 font-semibold">Name of the Examination</th>
               <th className="pb-4 pr-4 font-semibold">Session</th>
-              <th className="pb-4 pr-4 font-semibold">Centre</th>
+              <th className="pb-4 pr-4 font-semibold">City</th>
               <th className="pb-4 pr-4 font-semibold">Sub Centre</th>
               <th className="pb-4 pr-4 font-semibold">Verification Mode</th>
               <th className="pb-4 font-semibold">Admit Count</th>
@@ -127,7 +153,7 @@ export const DataTable = ({ rows, selectedExamCode, isLoading, error }: DataTabl
             ) : hasNoRows ? (
               <tr>
                 <td colSpan={8} className="py-6 text-center text-sm text-muted">
-                  No centres match the selected exam code.
+                  No cities match the selected exam code.
                 </td>
               </tr>
             ) : (
@@ -135,13 +161,13 @@ export const DataTable = ({ rows, selectedExamCode, isLoading, error }: DataTabl
                 const formattedCode = formatExamCode(row.examCode);
                 return (
                   <tr
-                    key={`${row.examCode}-${row.examDate}-${row.centreId}-${row.subCentreId}-${row.verificationMode}`}
+                    key={`${row.examCode}-${row.examDate}-${row.examSession}-${row.centreId}-${row.subCentreId}-${row.verificationMode}`}
                     className="text-primary"
                   >
                     <td className="py-4 pr-4">{row.examDate}</td>
                     <td className="py-4 pr-4 font-semibold">{formattedCode}</td>
                     <td className="py-4 pr-4">{row.examSession}</td>
-                    <td className="py-4 pr-4">{row.centreId}</td>
+                    <td className="py-4 pr-4">{formatCityDisplay(row.centreId)}</td>
                     <td className="py-4 pr-4 text-muted">{row.subCentreId}</td>
                     <td className="py-4 pr-4">
                       <span
@@ -159,7 +185,13 @@ export const DataTable = ({ rows, selectedExamCode, isLoading, error }: DataTabl
                     </td>
                     <td className="py-4 pl-2 text-right">
                       <a
-                        href={buildDownloadUrl(row.centreId, row.subCentreId)}
+                        href={buildDownloadUrl(
+                          row.examDate,
+                          row.examCode,
+                          row.examSession,
+                          row.centreId,
+                          row.subCentreId,
+                        )}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center rounded-lg border border-neutral px-3 py-1 text-xs font-semibold text-primary transition hover:bg-surface"

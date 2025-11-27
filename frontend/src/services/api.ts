@@ -1,40 +1,13 @@
 import type { ApiRecord, DashboardData, DashboardFilters, FilterOptions } from '../types';
 
 // Backend API URL - directly configured
-const DASHBOARD_STATS_API = 
-  import.meta.env.VITE_DASHBOARD_STATS_API || 
-  'https://upsc-dashboard-1.onrender.com/api/dashboard-stats';
+const DASHBOARD_STATS_API = 'https://aviktechnosoft.com/dic/data.php';
 const API_TIMEOUT = 10_000;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const isAll = (value?: string) =>
   !value || value.toLowerCase().startsWith('all') || value === '';
-
-const applyFilters = (records: ApiRecord[], filters?: DashboardFilters) =>
-  records.filter((record) => {
-    if (filters?.examCode && !isAll(filters.examCode) && record.upsc_exam_code !== filters.examCode)
-      return false;
-    if (filters?.examDate && !isAll(filters.examDate) && record.exam_date !== filters.examDate)
-      return false;
-    if (filters?.session && !isAll(filters.session) && record.exam_session !== filters.session)
-      return false;
-    if (filters?.centreId && !isAll(filters.centreId) && record.centre_id !== filters.centreId)
-      return false;
-    if (
-      filters?.subCentreId &&
-      !isAll(filters.subCentreId) &&
-      record.sub_centre_id !== filters.subCentreId
-    )
-      return false;
-    if (
-      filters?.verificationMode &&
-      !isAll(filters.verificationMode) &&
-      record.verification_mode !== filters.verificationMode
-    )
-      return false;
-    return true;
-  });
 
 export const formatExamCode = (code: string): string => {
   // Add prefixes based on exam code patterns
@@ -61,6 +34,41 @@ const buildFilterOptions = (records: ApiRecord[]) => {
     ...Array.from(new Set(values)).sort(),
   ];
 
+  // Sort dates in descending order (latest first)
+  const sortDatesDesc = (dates: string[]): string[] => {
+    return dates.sort((a, b) => {
+      // Parse dates - handle DD-MM-YYYY or YYYY-MM-DD format
+      const parseDate = (dateStr: string): number => {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+          // If format is DD-MM-YYYY, convert to YYYY-MM-DD for proper parsing
+          if (parts[0].length === 2 && parts[2].length === 4) {
+            const [day, month, year] = parts;
+            const normalizedDate = `${year}-${month}-${day}`;
+            return new Date(normalizedDate).getTime();
+          }
+          // If format is already YYYY-MM-DD
+          if (parts[0].length === 4) {
+            return new Date(dateStr).getTime();
+          }
+        }
+        return new Date(dateStr).getTime();
+      };
+      return parseDate(b) - parseDate(a); // Descending order
+    });
+  };
+
+  // Sort sessions with FN first, then AN
+  const sortSessions = (sessions: string[]): string[] => {
+    return sessions.sort((a, b) => {
+      if (a === 'FN' && b !== 'FN') return -1;
+      if (a !== 'FN' && b === 'FN') return 1;
+      if (a === 'AN' && b !== 'AN') return -1;
+      if (a !== 'AN' && b === 'AN') return 1;
+      return a.localeCompare(b);
+    });
+  };
+
   // Create exam code to dates mapping for filtering
   const examCodeToDates = new Map<string, Set<string>>();
   records.forEach((record) => {
@@ -79,11 +87,19 @@ const buildFilterOptions = (records: ApiRecord[]) => {
     examCodeMap.set(formattedExamCodes[idx], raw);
   });
 
+  // Get unique dates and sort in descending order
+  const uniqueDates = Array.from(new Set(records.map((item) => item.exam_date)));
+  const sortedDates = sortDatesDesc(uniqueDates);
+
+  // Get unique sessions and sort with FN first
+  const uniqueSessions = Array.from(new Set(records.map((item) => item.exam_session)));
+  const sortedSessions = sortSessions(uniqueSessions);
+
   return {
     examCodes: ['All Exam Codes', ...formattedExamCodes],
-    examDates: unique(records.map((item) => item.exam_date), 'All Dates'),
-    sessions: unique(records.map((item) => item.exam_session), 'All Sessions'),
-    centreIds: unique(records.map((item) => item.centre_id), 'All Centres'),
+    examDates: ['All Dates', ...sortedDates],
+    sessions: ['All Sessions', ...sortedSessions],
+    centreIds: unique(records.map((item) => item.centre_id), 'All Cities'),
     subCentreIds: unique(records.map((item) => item.sub_centre_id), 'All Sub Centres'),
     verificationModes: unique(
       records.map((item) => item.verification_mode),
@@ -96,7 +112,7 @@ const buildFilterOptions = (records: ApiRecord[]) => {
   };
 };
 
-interface DashboardStatsResponse {
+interface LegacyDashboardStatsResponse {
   status: string;
   code: number;
   message: string;
@@ -107,6 +123,19 @@ interface DashboardStatsResponse {
     last_updated?: string;
     stats?: ApiRecord[];
   };
+}
+
+interface SimpleDashboardStatsResponse {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  last_updated?: string;
+  count?: number;
+  filters_used?: Record<string, unknown>;
+  // Different possible containers for records depending on API version
+  data?: ApiRecord[] | { stats?: ApiRecord[] };
+  results?: ApiRecord[];
+  stats?: ApiRecord[];
 }
 
 interface DashboardStatsResult {
@@ -122,29 +151,125 @@ const mapStatsToRecords = (stats?: ApiRecord[]) =>
     exam_date: normalizeDate(stat.exam_date),
   }));
 
+// Extract raw exam code from formatted code (removes "PT ", "Mains " prefixes)
+const extractRawExamCode = (formattedCode?: string): string | undefined => {
+  if (!formattedCode || isAll(formattedCode)) return undefined;
+  
+  // Remove common prefixes
+  let rawCode = formattedCode.trim();
+  if (rawCode.startsWith('PT ')) {
+    rawCode = rawCode.substring(3);
+  } else if (rawCode.startsWith('Mains ')) {
+    rawCode = rawCode.substring(6);
+  }
+  
+  return rawCode;
+};
+
+const buildApiFilterPayload = (filters?: DashboardFilters) => {
+  const payload: Record<string, unknown> = {};
+
+  if (!filters) return payload;
+
+  // Send all filters to API - API will handle filtering server-side
+  if (filters.examCode && !isAll(filters.examCode)) {
+    const rawExamCode = extractRawExamCode(filters.examCode);
+    if (rawExamCode) {
+      payload.upsc_exam_code = rawExamCode;
+    }
+  }
+  if (filters.examDate && !isAll(filters.examDate)) {
+    payload.exam_date = filters.examDate;
+  }
+  if (filters.session && !isAll(filters.session)) {
+    payload.exam_session = filters.session;
+  }
+  if (filters.centreId && !isAll(filters.centreId)) {
+    payload.centre_id = filters.centreId;
+  }
+  if (filters.subCentreId && !isAll(filters.subCentreId)) {
+    payload.sub_centre_id = filters.subCentreId;
+  }
+  if (filters.verificationMode && !isAll(filters.verificationMode)) {
+    payload.verification_mode = filters.verificationMode;
+  }
+
+  return payload;
+};
+
+const extractRecordsFromResponse = (
+  parsed: unknown,
+): { records: ApiRecord[]; lastUpdated?: string } => {
+  let records: ApiRecord[] = [];
+  let lastUpdated: string | undefined;
+
+  // Case 1: API returns plain array of records
+  if (Array.isArray(parsed)) {
+    records = parsed as ApiRecord[];
+  } else if (parsed && typeof parsed === 'object') {
+    const obj = parsed as SimpleDashboardStatsResponse & LegacyDashboardStatsResponse;
+
+    // Case 2: New simple API: { success, results: [...] }
+    if (Array.isArray(obj.results)) {
+      records = obj.results as ApiRecord[];
+      lastUpdated = obj.last_updated;
+    } else if (Array.isArray(obj.data)) {
+      // Case 3: { data: [...] }
+      records = obj.data as ApiRecord[];
+      lastUpdated = obj.last_updated;
+    } else if (obj.data && Array.isArray((obj.data as any).stats)) {
+      // Case 4: data.stats[]
+      records = (obj.data as any).stats as ApiRecord[];
+      lastUpdated = obj.last_updated ?? obj.data.last_updated;
+    } else if (Array.isArray((obj as any).stats)) {
+      // Case 5: { stats: [...] }
+      records = (obj as any).stats as ApiRecord[];
+      lastUpdated = obj.last_updated;
+    } else if ('status' in obj && (obj as LegacyDashboardStatsResponse).status === 'success') {
+      // Case 6: Legacy proxy response
+      const legacy = obj as LegacyDashboardStatsResponse;
+      records = legacy.data?.stats ?? [];
+      lastUpdated = legacy.fetched_at ?? legacy.data?.last_updated;
+    } else if ('success' in obj && obj.success === false) {
+      // Explicit error from simple API
+      throw new Error(obj.error || 'Dashboard API returned an error');
+    }
+  }
+
+  if (!records || !Array.isArray(records)) {
+    throw new Error('Dashboard API response did not contain stats data');
+  }
+
+  return { records, lastUpdated };
+};
+
 const fetchDashboardStats = async (
   controller: AbortController,
+  filters?: DashboardFilters,
 ): Promise<DashboardStatsResult> => {
   const response = await fetch(DASHBOARD_STATS_API, {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(buildApiFilterPayload(filters)),
     signal: controller.signal,
   });
 
   if (!response.ok) {
-    throw new Error(`Proxy responded with status ${response.status}`);
+    throw new Error(`Dashboard API responded with status ${response.status}`);
   }
 
-  const parsed = (await response.json()) as DashboardStatsResponse;
-  if (parsed.status !== 'success') {
-    throw new Error(parsed.message || 'Dashboard stats proxy error');
-  }
+  const parsed = await response.json();
+  const { records } = extractRecordsFromResponse(parsed);
 
-  const fetchedAt = parsed.fetched_at ?? parsed.data?.last_updated ?? new Date().toISOString();
+  // Use current frontend time when API call completes (real-time fetch timestamp)
+  const fetchTimestamp = new Date().toISOString();
 
   return {
-    records: mapStatsToRecords(parsed.data?.stats),
-    lastUpdated: fetchedAt,
+    records: mapStatsToRecords(records),
+    lastUpdated: fetchTimestamp,
   };
 };
 
@@ -152,7 +277,7 @@ const createEmptyFilters = (): FilterOptions => ({
   examCodes: ['All Exam Codes'],
   examDates: ['All Dates'],
   sessions: ['All Sessions'],
-  centreIds: ['All Centres'],
+    centreIds: ['All Cities'],
   subCentreIds: ['All Sub Centres'],
   verificationModes: ['All Modes'],
 });
@@ -178,35 +303,26 @@ const createEmptyDashboardData = (filters?: FilterOptions, lastUpdated?: string)
 
 const toDashboardData = (
   records: ApiRecord[],
-  filters?: DashboardFilters,
   lastUpdated?: string,
 ): DashboardData => {
   if (!records.length) {
     return createEmptyDashboardData(undefined, lastUpdated);
   }
 
+  // API returns filtered results, so use records directly without client-side filtering
+  // Build filter options from the returned records (these will be the available options for the filtered dataset)
   const filterOptions = buildFilterOptions(records);
-  const examCodeMap = filterOptions._examCodeMap;
   
-  // Convert formatted exam code to raw code if needed
-  let processedFilters = filters;
-  if (filters?.examCode && filters.examCode !== 'All Exam Codes' && examCodeMap) {
-    const rawCode = examCodeMap.get(filters.examCode);
-    if (rawCode) {
-      processedFilters = { ...filters, examCode: rawCode };
-    }
-  }
-  
-  const filtered = applyFilters(records, processedFilters);
-  const totalAdmits = filtered.reduce((sum, row) => sum + row.admit_count, 0);
-  const automatedLogins = filtered
+  // Calculate statistics from the API-filtered records
+  const totalAdmits = records.reduce((sum, row) => sum + row.admit_count, 0);
+  const automatedLogins = records
     .filter((row) => row.verification_mode === 'A')
     .reduce((sum, row) => sum + row.admit_count, 0);
-  const manualLogins = filtered
+  const manualLogins = records
     .filter((row) => row.verification_mode === 'M')
     .reduce((sum, row) => sum + row.admit_count, 0);
 
-  const loginComparison = filtered.reduce<Record<string, { automated: number; manual: number }>>(
+  const loginComparison = records.reduce<Record<string, { automated: number; manual: number }>>(
     (acc, row) => {
       const bucket = acc[row.centre_id] ?? { automated: 0, manual: 0 };
       if (row.verification_mode === 'A') {
@@ -220,7 +336,8 @@ const toDashboardData = (
     {},
   );
 
-  const table = filtered.map((row) => ({
+  // Table shows only the filtered records returned by API
+  const table = records.map((row) => ({
     examCode: row.upsc_exam_code,
     examDate: row.exam_date,
     examSession: row.exam_session,
@@ -236,7 +353,7 @@ const toDashboardData = (
     bucket[key] = (bucket[key] ?? 0) + value;
   };
 
-  const { centreTotals, courseTotals, sessionTotals } = filtered.reduce(
+  const { centreTotals, courseTotals, sessionTotals } = records.reduce(
     (acc, row) => {
       increment(acc.centreTotals, row.centre_id, row.admit_count);
       increment(acc.courseTotals, row.upsc_exam_code, row.admit_count);
@@ -286,12 +403,12 @@ export const fetchDashboardData = async (
   const timeout = setTimeout(() => controller.abort(), API_TIMEOUT);
 
   try {
-    const { records, lastUpdated } = await fetchDashboardStats(controller);
+    const { records, lastUpdated } = await fetchDashboardStats(controller, filters);
     if (!records.length) {
       return createEmptyDashboardData(undefined, lastUpdated);
     }
 
-    return toDashboardData(records, filters, lastUpdated);
+    return toDashboardData(records, lastUpdated);
   } catch (error) {
     console.error('fetchDashboardData error', error);
     await wait(500);
