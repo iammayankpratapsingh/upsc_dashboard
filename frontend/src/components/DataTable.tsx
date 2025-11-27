@@ -43,11 +43,11 @@ const buildDownloadUrl = (
   
   // Build URL with all parameters
   const params = new URLSearchParams();
-  if (examDate) params.append('date', examDate);
-  if (rawExamCode) params.append('exam', rawExamCode);
-  if (examSession) params.append('session', examSession);
-  if (normalizedCentre) params.append('centre', normalizedCentre);
-  if (normalizedSubCentre) params.append('subcentre', normalizedSubCentre);
+  if (examDate) params.append('exam_date', examDate);
+  if (rawExamCode) params.append('upsc_exam_code', rawExamCode);
+  if (examSession) params.append('exam_session', examSession);
+  if (normalizedCentre) params.append('centre_id', normalizedCentre);
+  if (normalizedSubCentre) params.append('sub_centre_id', normalizedSubCentre);
   
   return `https://aviktechnosoft.com/dic/test.php?${params.toString()}`;
 };
