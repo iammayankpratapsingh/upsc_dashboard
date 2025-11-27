@@ -122,7 +122,7 @@ function App() {
         isDisabled={!data?.filters}
       />
 
-      <section className="mt-4 grid gap-4 lg:grid-cols-2">
+      <section className="mt-4 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <ComparisonChart
           data={data?.loginComparison ?? []}
           isLoading={isLoading || !data}

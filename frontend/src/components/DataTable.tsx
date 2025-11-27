@@ -126,7 +126,8 @@ export const DataTable = ({ rows, selectedExamCode, isLoading, error }: DataTabl
       }
     >
       <div className="overflow-x-auto">
-        <table className="min-w-full text-left text-sm text-primary">
+        <div className="custom-scroll max-h-[420px] overflow-y-auto pr-2">
+          <table className="min-w-full text-left text-sm text-primary">
           <thead>
             <tr className="text-xs uppercase text-muted">
               <th className="pb-4 pr-4 font-semibold">Exam Date</th>
@@ -204,9 +205,10 @@ export const DataTable = ({ rows, selectedExamCode, isLoading, error }: DataTabl
               })
             )}
           </tbody>
-      </table>
-    </div>
-  </WidgetCard>
+          </table>
+        </div>
+      </div>
+    </WidgetCard>
   );
 };
 

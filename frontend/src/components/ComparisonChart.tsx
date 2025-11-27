@@ -40,6 +40,37 @@ const ChartTooltip = ({
   );
 };
 
+const CityCodeTick = ({
+  x = 0,
+  y = 0,
+  payload,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value?: string };
+}) => {
+  if (!payload?.value) return null;
+  const display = formatCityDisplay(payload.value);
+  const match = display.match(/^(.*)\s\((.*)\)$/);
+  const cityName = match ? match[1] : display;
+  const centreCode = match ? match[2] : '';
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text textAnchor="middle" fill="var(--text-muted)" fontSize={10}>
+        <tspan x={0} dy={0}>
+          {cityName}
+        </tspan>
+        {centreCode && (
+          <tspan x={0} dy={12} fontSize={9}>
+            {centreCode}
+          </tspan>
+        )}
+      </text>
+    </g>
+  );
+};
+
 export const ComparisonChart = ({
   data,
   isLoading,
@@ -65,52 +96,52 @@ export const ComparisonChart = ({
           ))}
         </div>
       ) : (
-        <div className="h-64 w-full">
-          <ResponsiveContainer>
-            <BarChart
-              data={sortedData}
-              layout="vertical"
-              margin={{ top: 8, right: 16, left: 0, bottom: 8 }}
-              barSize={18}
-            >
-            <CartesianGrid horizontal={false} stroke="var(--border-color)" />
-            <XAxis
-              type="number"
-              axisLine={false}
-              tickLine={false}
-              fontSize={12}
-              tick={{ fill: 'var(--text-muted)' }}
-            />
-            <YAxis
-              type="category"
-              dataKey="centreId"
-              axisLine={false}
-              tickLine={false}
-              fontSize={12}
-              tick={{ fill: 'var(--text-muted)' }}
-              tickFormatter={(value) => formatCityDisplay(value)}
-            />
-            <Tooltip content={<ChartTooltip />} />
-            <Bar
-              dataKey="automated"
-              fill="#1f4ed8"
-              radius={[0, 8, 8, 0]}
-              animationDuration={400}
-              cursor="default"
-              onClick={() => {}}
-            />
-            <Bar
-              dataKey="manual"
-              fill="#97b0ff"
-              radius={[0, 8, 8, 0]}
-              animationDuration={400}
-              cursor="default"
-              onClick={() => {}}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    )}
+        <div className="w-full">
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={sortedData}
+                margin={{ top: 16, right: 24, left: 16, bottom: 36 }}
+                barSize={14}
+              >
+                <CartesianGrid vertical={false} stroke="var(--border-color)" />
+                <XAxis
+                  type="category"
+                  dataKey="centreId"
+                  axisLine={false}
+                  tickLine={false}
+                  interval={0}
+                  tickMargin={16}
+                  tick={<CityCodeTick />}
+                />
+                <YAxis
+                  type="number"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+                />
+                <Tooltip content={<ChartTooltip />} />
+                <Bar
+                  dataKey="automated"
+                  fill="#1f4ed8"
+                  radius={[8, 8, 0, 0]}
+                  animationDuration={400}
+                  cursor="default"
+                  onClick={() => {}}
+                />
+                <Bar
+                  dataKey="manual"
+                  fill="#97b0ff"
+                  radius={[8, 8, 0, 0]}
+                  animationDuration={400}
+                  cursor="default"
+                  onClick={() => {}}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
   </WidgetCard>
   );
 };
